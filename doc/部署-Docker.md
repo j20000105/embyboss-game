@@ -84,7 +84,7 @@ docker compose exec -it -w /var/www/html/embyboss-game php php artisan view:cach
 
 ## 设置 Bot 回调地址
 ```
-docker compose exec -it -w /var/www/html/embyboss-game php php artisan telegram:webhook
+docker compose exec -it -w /var/www/html/embyboss-game php php artisan telegram:webhook --setup
 ```
 
 ## 检查部署是否成功

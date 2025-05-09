@@ -12,5 +12,7 @@ class Emby extends Model
 
     protected $guarded = [];
 
+    const CREATED_AT = null;
+
     const UPDATED_AT = null;
 }
