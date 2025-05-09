@@ -27,6 +27,7 @@ DB_PASSWORD=
 ```
 
 ### 修改TG等配置
+```
 TELEGRAM_BOT_TOKEN=发送通知用的BOT
 TELEGRAM_WEBHOOK_URL=https://回调地址/telegram/随机字符串/webhook # 必须使用https，部署完成后可人工访问一下该地址，确认是否联通
 TELEGRAM_WEBHOOK_DISGUISE=随机字符串 # 与上面地址中的保持一致，防止被别人猜到发送假消息

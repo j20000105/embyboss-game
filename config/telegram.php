@@ -12,6 +12,7 @@ return [
                 Commands\StartGame::class,
                 Commands\FinishGame::class,
                 Commands\NumberGame::class,
+                Commands\NumberGameInfo::class,
             ],
         ],
     ],

@@ -24,10 +24,20 @@ class NumberGame extends BaseCommand
 
             return;
         }
+        $currentGame = Game::where('type', 'number')->where('status', 'ongoing')->first();
+        if (empty($currentGame)) {
+            $this->replyWithMessage([
+                'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
+                'text' => '当前没有游戏进行中',
+            ]);
+
+            return;
+        }
+
         $text = $this->getUpdate()->getMessage()->text;
-        $game = explode(' ', $text);
+        $gameParams = explode(' ', $text);
         $coinName = config('game.coin_name');
-        if (count($game) < 2) {
+        if (count($gameParams) < 2) {
             $this->replyWithMessage([
                 'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
                 'text' => <<<'NOTICE'
@@ -39,20 +49,23 @@ NOTICE,
 
             return;
         }
+        $range = $currentGame->details['range'];
         $numbers = [];
-        foreach ($game as $key => $value) {
+        foreach ($gameParams as $key => $value) {
             if ($key == 0) {
                 continue;
             }
-            if (! is_numeric($value)) {
+            if (! is_numeric($value)
+                || ! in_array($value, range($range[0], $range[1]))
+            ) {
                 $this->replyWithMessage([
                     'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
-                    'text' => '请输入数字',
+                    'text' => sprintf('请输入范围在 %d 至 %d 的整数数字', $range[0], $range[1]),
                 ]);
 
                 return;
             }
-            $numbers[] = $value;
+            $numbers[] = intval($value);
         }
         $numbers = array_unique($numbers);
 
@@ -67,20 +80,11 @@ NOTICE,
             return;
         }
 
-        $game = Game::where('type', 'number')->where('status', 'ongoing')->first();
-        if (empty($game)) {
-            $this->replyWithMessage([
-                'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
-                'text' => '当前没有游戏进行中',
-            ]);
-
-            return;
-        }
-        $details = $game->details;
+        $details = $currentGame->details;
         $gameCosts = $details['costs'];
         // 查询已投注数字
         $numberPlaced = [];
-        $records = GamePlay::where('game_id', $game->id)->where('tg_id', $from->id)->get();
+        $records = GamePlay::where('game_id', $currentGame->id)->where('tg_id', $from->id)->get();
         foreach ($records as $record) {
             $numberPlaced = array_merge($numberPlaced, $record->details['numbers']);
         }
@@ -94,7 +98,7 @@ NOTICE,
             return;
         }
         $totalNumberCount = count($numbers) + count($numberPlaced);
-        // 计算消耗金币数
+        // 计算花费金币数
         if ($totalNumberCount > count($gameCosts)) {
             $this->replyWithMessage([
                 'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
@@ -130,7 +134,10 @@ NOTICE,
         // 开启事务
         DB::beginTransaction();
         try {
-            $res = $account->where('iv', '>=', $needCost)->decrement('iv', $needCost);
+            $res = $account
+                ->where('tg', $account->tg)
+                ->where('iv', '>=', $needCost)
+                ->decrement('iv', $needCost);
             if (empty($res)) {
                 DB::rollback();
                 $lock->release();
@@ -143,7 +150,7 @@ NOTICE,
             GamePlay::create([
                 'tg_id' => $from->id,
                 'tg_name' => trim($from->first_name.' '.$from->last_name),
-                'game_id' => $game->id,
+                'game_id' => $currentGame->id,
                 'coins' => $needCost,
                 'before_coins' => $account->iv,
                 'after_coins' => $account->iv - $needCost,
@@ -151,10 +158,10 @@ NOTICE,
                     'numbers' => $numbers,
                 ],
             ]);
-            $game->increment('total_coins', $needCost);
+            $currentGame->increment('total_coins', $needCost);
             if (empty($numberPlaced)) {
                 // 第一次参与，统计人数
-                $game->increment('total_players');
+                $currentGame->increment('total_players');
             }
             DB::commit();
             $lock->release();
@@ -164,7 +171,7 @@ NOTICE,
             Log::error('参与游戏失败:'.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
             $this->replyWithMessage([
                 'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
-                'text' => '参与失败',
+                'text' => '参与失败，出Bug了',
             ]);
 
             return;
@@ -176,7 +183,13 @@ NOTICE,
         }
         $this->replyWithMessage([
             'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
-            'text' => $type.'成功，本次消耗 '.$needCost.' '.$coinName,
+            'text' => sprintf("%s成功\n本次花费 %s %s\n总奖池 %d %s",
+                $type,
+                $needCost,
+                $coinName,
+                $currentGame->total_coins,
+                $coinName
+            ),
         ]);
     }
 }

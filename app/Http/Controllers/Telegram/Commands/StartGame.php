@@ -24,10 +24,13 @@ class StartGame extends BaseCommand
         $game = explode(' ', $text);
         $coinName = config('game.coin_name');
         $commandExample = <<<EXAMPLE
-指令错误，请按照以下格式创建游戏：
-猜数字游戏 /start_game number 500 2000 10000, 数字为投注指定个数所需消耗{$coinName}，同时也限制最大投注个数，至少填写一个
+指令格式如下：
+1、猜数字游戏
+/start_game number 0-9 500 2000 10000
+0-9 为数字范围，可自定义
+数字为投注指定个数所需花费{$coinName}，同时也限制最大投注个数，至少填写一个
 EXAMPLE;
-        if (count($game) < 2) {
+        if (count($game) < 4) {
             $this->replyWithMessage([
                 'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
                 'text' => $commandExample,
@@ -50,14 +53,22 @@ EXAMPLE;
 
     public function numberGame($game)
     {
-        if (count($game) < 3) {
+        $range = $game[2];
+        $range = explode('-', $range);
+        if (count($range) != 2
+            || intval($range[0]) != $range[0]
+            || intval($range[1]) != $range[1]
+            || $range[0] > $range[1]
+        ) {
             $this->replyWithMessage([
                 'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
-                'text' => '请至少填写一个数字',
+                'text' => '范围设置错误，正确格式为：数字-数字',
             ]);
 
             return;
         }
+        $range = array_map('intval', $range);
+
         $currentGame = Game::where('type', 'number')->where('status', 'ongoing')->first();
         if ($currentGame) {
             $this->replyWithMessage([
@@ -71,24 +82,25 @@ EXAMPLE;
         $explains = [];
         $coinName = config('game.coin_name');
         foreach ($game as $key => $value) {
-            if ($key < 2) {
+            if ($key < 3) {
                 continue;
             }
-            if (! is_numeric($value)) {
+            if (! is_numeric($value) || intval($value) != $value) {
                 $this->replyWithMessage([
                     'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
-                    'text' => '请输入数字',
+                    'text' => '请输入整数数字',
                 ]);
 
                 return;
             }
-            $costs[] = $value;
-            $explains[] = sprintf('投注 %s 个数字，消耗 %s %s', $key - 1, $value, $coinName);
+            $costs[] = intval($value);
+            $explains[] = sprintf('投注 %s 个数字，总花费 %s %s', $key - 2, $value, $coinName);
         }
         Game::create([
             'status' => 'ongoing',
             'type' => 'number',
             'details' => [
+                'range' => $range,
                 'costs' => $costs,
             ],
             'creator_tg_id' => $this->getUpdate()->getMessage()->from->id,
@@ -96,7 +108,7 @@ EXAMPLE;
 
         $this->replyWithMessage([
             'chat_id' => config('telegram.group_id'),
-            'text' => sprintf("猜数字游戏开始，详情：\n%s", implode("\n", $explains)),
+            'text' => sprintf("猜数字游戏开始\n数字范围为 %d 到 %d\n%s", $range[0], $range[1], implode("\n", $explains)),
         ]);
     }
 }

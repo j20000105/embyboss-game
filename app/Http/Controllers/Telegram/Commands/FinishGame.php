@@ -28,8 +28,10 @@ class FinishGame extends BaseCommand
         $game = explode(' ', $text);
         $coinName = config('game.coin_name');
         $commandExample = <<<'EXAMPLE'
-指令错误，请按照以下格式结束游戏：
-猜数字游戏 /finish_game number 5, 其中数字为中奖结果
+指令错误格式如下：
+1、猜数字游戏
+/finish_game number 5
+数字为开奖结果
 EXAMPLE;
         if (count($game) < 2) {
             $this->replyWithMessage([
@@ -62,6 +64,7 @@ EXAMPLE;
 
             return;
         }
+        $coinName = config('game.coin_name');
         $correctNumber = $game[2];
         $currentGame = Game::where('type', 'number')->where('status', 'ongoing')->first();
         if (! $currentGame) {
@@ -72,6 +75,19 @@ EXAMPLE;
 
             return;
         }
+        $range = $currentGame->details['range'];
+        if (! in_array($correctNumber, range($range[0], $range[1]))) {
+            $this->replyWithMessage([
+                'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
+                'text' => sprintf('中奖数字应该为 %d 至 %d', $range[0], $range[1]),
+            ]);
+
+            return;
+        }
+        $currentGame->win_details = [
+            'correct_number' => intval($correctNumber),
+        ];
+
         $plays = GamePlay::where('game_id', $currentGame->id)->get();
         if ($plays->isEmpty()) {
             $currentGame->status = 'finished';
@@ -79,7 +95,7 @@ EXAMPLE;
 
             $this->replyWithMessage([
                 'chat_id' => config('telegram.group_id'),
-                'text' => '游戏结束，没有人参与',
+                'text' => '猜数字游戏结束，没有人参与',
             ]);
 
             return;
@@ -95,13 +111,21 @@ EXAMPLE;
                 ];
             }
         }
+        $totalCoins = $currentGame->total_coins;
 
         if (empty($correctPerson)) {
             $currentGame->status = 'finished';
             $currentGame->save();
+            $notice = <<<NOTICE
+猜数字游戏结束
+中奖数字：{$correctNumber}
+总投注{$coinName}：{$totalCoins}
+总投注人数：{$currentGame->total_players}
+没有人中奖，全归老板！
+NOTICE;
             $this->replyWithMessage([
                 'chat_id' => config('telegram.group_id'),
-                'text' => sprintf("猜数字游戏结束\n中奖数字：%s\n没有人中奖，全归老板！", $correctNumber),
+                'text' => $notice,
             ]);
 
             return;
@@ -117,7 +141,6 @@ EXAMPLE;
             return;
         }
 
-        $totalCoins = $currentGame->total_coins;
         $totalCorrectPerson = count($correctPerson);
 
         $feeRate = config('game.fee_rate');
@@ -141,21 +164,24 @@ EXAMPLE;
                 'after_coins' => $person->iv + $eachCoins,
             ]);
 
-            $person->increment('iv', $eachCoins);
+            $person
+                ->where('tg', $person['tg'])
+                ->increment('iv', $eachCoins);
         }
         $currentGame->status = 'finished';
+        $currentGame->winner_count = $totalCorrectPerson;
         $currentGame->save();
 
         $personDetail = '';
         foreach ($correctPerson as $personInfo) {
-            $personDetail .= sprintf("[@%s](tg://user?id=%s)\n", telegramEscape($personInfo['tg_name']), $personInfo['tg_id']);
+            $personDetail .= sprintf("[%s](tg://user?id=%s)\n", telegramEscape($personInfo['tg_name']), $personInfo['tg_id']);
         }
 
         $notice = <<<NOTICE
 猜数字游戏结束
 中奖数字：{$correctNumber}
 中奖人数：{$totalCorrectPerson}
-总投注金额：{$totalCoins}
+总投注{$coinName}：{$totalCoins}
 总投注人数：{$currentGame->total_players}
 每人获得 {$eachCoins}
 中奖名单：
