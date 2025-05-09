@@ -1,0 +1,46 @@
+services:
+  nginx:
+    image: nginx
+    restart: unless-stopped
+    networks:
+      - default
+    ports:
+      - 8999:80
+    depends_on:
+      - php
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      - ../:/var/www/html/embyboss-game
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/nginxconfig.io:/etc/nginx/nginxconfig.io
+      - ./nginx/sites-enabled:/etc/nginx/sites-enabled
+  php:
+    image: j20000105/php-fpm
+    restart: unless-stopped
+    user: www-data:www-data
+    networks:
+      - default
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      - ../:/var/www/html/embyboss-game
+  redis:
+    image: redis
+    restart: unless-stopped
+    networks:
+      - default
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      test: redis-cli ping | grep PONG
+      timeout: 10s
+      interval: 10s
+      retries: 3
+
+networks:
+  default:
+    name: embyboss-game

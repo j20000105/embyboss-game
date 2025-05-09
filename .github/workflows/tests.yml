@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - main
       - '*.x'
   pull_request:
   schedule:
@@ -23,6 +24,20 @@ jobs:
 
     name: PHP ${{ matrix.php }}
 
+    services:
+      mysql:
+        image: mysql
+        env:
+          MYSQL_DATABASE: embyboss
+          MYSQL_ROOT_PASSWORD: 123456
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -31,17 +46,17 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite
-          coverage: none
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, redis
+          coverage: xdebug
 
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
       - name: Copy environment file
-        run: cp .env.example .env
+        run: cp .env.testing .env
 
-      - name: Generate app key
-        run: php artisan key:generate
+      - name: Setup database
+        run: php artisan migrate:fresh
 
       - name: Execute tests
-        run: php artisan test
+        run: php artisan test --coverage
