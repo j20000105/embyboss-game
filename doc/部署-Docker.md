@@ -28,17 +28,13 @@ DB_PASSWORD=
 
 ### 修改TG等配置
 TELEGRAM_BOT_TOKEN=发送通知用的BOT
-TELEGRAM_WEBHOOK_URL=https://回调地址/telegram/随机字符串/webhook
-TELEGRAM_WEBHOOK_DISGUISE=随机字符串，与上面地址中的保持一致，防止被别人猜到发送假消息
+TELEGRAM_WEBHOOK_URL=https://回调地址/telegram/随机字符串/webhook # 必须使用https，部署完成后可人工访问一下该地址，确认是否联通
+TELEGRAM_WEBHOOK_DISGUISE=随机字符串 # 与上面地址中的保持一致，防止被别人猜到发送假消息
 TELEGRAM_GROUP_ID=群组ID
 TELEGRAM_ADMIN_IDS=管理员TG_ID，多个使用英文逗号分割
 
 COIN_NAME=花瓣 # 金币名称
 GAME_FEE_RATE=10 # 手续费率
-
-TELEGRAM_BOT_TOKEN=发送通知用的BOT
-TELEGRAM_USER_GROUP_ID=如果需要给普通群组发送消息，则填写。会发送简要的信息。
-TELEGRAM_ADMIN_GROUP_ID=如果需要给管理群组发送消息，则填写。会发送详细的信息，包括IP地址等隐私信息，请勿发送给普通群组。
 ```
 
 ## 部署
