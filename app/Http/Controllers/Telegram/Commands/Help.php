@@ -10,6 +10,12 @@ class Help extends BaseCommand
 
     public function handle(): void
     {
+
+        $gameCommand = $this->parseCommand($this->getUpdate()->getMessage()->text);
+        if (empty($gameCommand) || empty($gameCommand['command']) || $gameCommand['command'] !== $this->name) {
+            return;
+        }
+
         $commands = $this->telegram->getCommandBus()->getCommands();
 
         $text = '';
@@ -17,6 +23,6 @@ class Help extends BaseCommand
             $text .= sprintf('/%s - %s'.PHP_EOL, $name, $handler->getDescription());
         }
 
-        $this->replyWithMessage(['text' => $text]);
+        $this->replyMessage(['text' => $text]);
     }
 }

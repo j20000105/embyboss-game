@@ -18,7 +18,7 @@ class NumberGame extends BaseCommand
     public function handle(): void
     {
         if (! $this->inGroup()) {
-            $this->replyWithMessage([
+            $this->replyMessage([
                 'text' => '仅限群组中使用',
             ]);
 
@@ -26,7 +26,7 @@ class NumberGame extends BaseCommand
         }
         $currentGame = Game::where('type', 'number')->where('status', 'ongoing')->first();
         if (empty($currentGame)) {
-            $this->replyWithMessage([
+            $this->replyMessage([
                 'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
                 'text' => '当前没有游戏进行中',
             ]);
@@ -34,11 +34,23 @@ class NumberGame extends BaseCommand
             return;
         }
 
+        if (! empty($currentGame->details['closing_time'])) {
+            $closingTime = $currentGame->details['closing_time'];
+            if (time() > strtotime($closingTime)) {
+                $this->replyMessage([
+                    'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
+                    'text' => '已封盘，等待开奖',
+                ]);
+
+                return;
+            }
+        }
+
         $text = $this->getUpdate()->getMessage()->text;
         $gameParams = explode(' ', $text);
         $coinName = config('game.coin_name');
         if (count($gameParams) < 2) {
-            $this->replyWithMessage([
+            $this->replyMessage([
                 'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
                 'text' => <<<'NOTICE'
 指令格式如下：
@@ -58,7 +70,7 @@ NOTICE,
             if (! is_numeric($value)
                 || ! in_array($value, range($range[0], $range[1]))
             ) {
-                $this->replyWithMessage([
+                $this->replyMessage([
                     'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
                     'text' => sprintf('请输入范围在 %d 至 %d 的整数数字', $range[0], $range[1]),
                 ]);
@@ -72,7 +84,7 @@ NOTICE,
         $from = $this->getUpdate()->getMessage()->from;
         $account = Emby::where('tg', $from->id)->first();
         if (empty($account)) {
-            $this->replyWithMessage([
+            $this->replyMessage([
                 'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
                 'text' => '你号呢？',
             ]);
@@ -90,7 +102,7 @@ NOTICE,
         }
 
         if (! empty(array_intersect($numbers, $numberPlaced))) {
-            $this->replyWithMessage([
+            $this->replyMessage([
                 'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
                 'text' => sprintf('已经投注数字 %s 了', implode(',', $numberPlaced)),
             ]);
@@ -100,7 +112,7 @@ NOTICE,
         $totalNumberCount = count($numbers) + count($numberPlaced);
         // 计算花费金币数
         if ($totalNumberCount > count($gameCosts)) {
-            $this->replyWithMessage([
+            $this->replyMessage([
                 'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
                 'text' => '最多投注'.count($gameCosts).'个数字',
             ]);
@@ -113,7 +125,7 @@ NOTICE,
             $needCost -= $gameCosts[count($numberPlaced) - 1];
         }
         if ($account->iv < $needCost) {
-            $this->replyWithMessage([
+            $this->replyMessage([
                 'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
                 'text' => $coinName.'不足，快呼叫老板！',
             ]);
@@ -123,7 +135,7 @@ NOTICE,
 
         $lock = Cache::lock('number_game:'.$from->id, 3);
         if (! $lock->get()) {
-            $this->replyWithMessage([
+            $this->replyMessage([
                 'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
                 'text' => '游戏人数较多，请稍后再试',
             ]);
@@ -141,7 +153,7 @@ NOTICE,
             if (empty($res)) {
                 DB::rollback();
                 $lock->release();
-                $this->replyWithMessage([
+                $this->replyMessage([
                     'text' => $coinName.'扣减失败',
                 ]);
 
@@ -169,7 +181,7 @@ NOTICE,
             DB::rollback();
             $lock->release();
             Log::error('参与游戏失败:'.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            $this->replyWithMessage([
+            $this->replyMessage([
                 'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
                 'text' => '参与失败，出Bug了',
             ]);
@@ -181,7 +193,7 @@ NOTICE,
         if (! empty($numberPlaced)) {
             $type = '追加';
         }
-        $this->replyWithMessage([
+        $this->replyMessage([
             'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
             'text' => sprintf("%s成功\n本次花费 %s %s\n总奖池 %d %s",
                 $type,

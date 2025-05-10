@@ -14,7 +14,7 @@ class NumberGameInfo extends BaseCommand
     public function handle(): void
     {
         if (! $this->isAdmin()) {
-            $this->replyWithMessage([
+            $this->replyMessage([
                 'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
                 'text' => '仅限管理员使用',
             ]);
@@ -26,7 +26,7 @@ class NumberGameInfo extends BaseCommand
 
         $game = Game::where('type', 'number')->where('status', 'ongoing')->first();
         if (empty($game)) {
-            $this->replyWithMessage([
+            $this->replyMessage([
                 'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
                 'text' => '当前没有游戏进行中',
             ]);
@@ -62,7 +62,7 @@ class NumberGameInfo extends BaseCommand
 投注详情：
 {$numberDetails}
 INFO;
-        $this->replyWithMessage([
+        $this->replyMessage([
             'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
             'text' => $info,
         ]);

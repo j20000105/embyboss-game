@@ -6,6 +6,7 @@ use App\Models\Emby;
 use App\Models\Game;
 use App\Models\GamePlay;
 use App\Models\GameReward;
+use App\Services\TelegramService;
 use Illuminate\Support\Facades\Cache;
 
 class FinishGame extends BaseCommand
@@ -17,7 +18,7 @@ class FinishGame extends BaseCommand
     public function handle(): void
     {
         if (! $this->isAdmin()) {
-            $this->replyWithMessage([
+            $this->replyMessage([
                 'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
                 'text' => '仅限管理员使用',
             ]);
@@ -34,7 +35,7 @@ class FinishGame extends BaseCommand
 数字为开奖结果
 EXAMPLE;
         if (count($game) < 2) {
-            $this->replyWithMessage([
+            $this->replyMessage([
                 'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
                 'text' => $commandExample,
             ]);
@@ -46,7 +47,7 @@ EXAMPLE;
                 $this->numberGame($game);
                 break;
             default:
-                $this->replyWithMessage([
+                $this->replyMessage([
                     'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
                     'text' => $commandExample,
                 ]);
@@ -57,7 +58,7 @@ EXAMPLE;
     public function numberGame($game)
     {
         if (count($game) !== 3) {
-            $this->replyWithMessage([
+            $this->replyMessage([
                 'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
                 'text' => '请输入中奖数字',
             ]);
@@ -68,7 +69,7 @@ EXAMPLE;
         $correctNumber = $game[2];
         $currentGame = Game::where('type', 'number')->where('status', 'ongoing')->first();
         if (! $currentGame) {
-            $this->replyWithMessage([
+            $this->replyMessage([
                 'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
                 'text' => '当前没有游戏正在进行',
             ]);
@@ -77,7 +78,7 @@ EXAMPLE;
         }
         $range = $currentGame->details['range'];
         if (! in_array($correctNumber, range($range[0], $range[1]))) {
-            $this->replyWithMessage([
+            $this->replyMessage([
                 'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
                 'text' => sprintf('中奖数字应该为 %d 至 %d', $range[0], $range[1]),
             ]);
@@ -93,7 +94,7 @@ EXAMPLE;
             $currentGame->status = 'finished';
             $currentGame->save();
 
-            $this->replyWithMessage([
+            $this->replyMessage([
                 'chat_id' => config('telegram.group_id'),
                 'text' => '猜数字游戏结束，没有人参与',
             ]);
@@ -123,7 +124,7 @@ EXAMPLE;
 总投注人数：{$currentGame->total_players}
 没有人中奖，全归老板！
 NOTICE;
-            $this->replyWithMessage([
+            $this->replyMessage([
                 'chat_id' => config('telegram.group_id'),
                 'text' => $notice,
             ]);
@@ -133,7 +134,7 @@ NOTICE;
 
         $lock = Cache::lock('finish_game:'.$currentGame->id, 10);
         if (! $lock->get()) {
-            $this->replyWithMessage([
+            $this->replyMessage([
                 'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
                 'text' => '开奖中，请勿频繁操作',
             ]);
@@ -148,7 +149,7 @@ NOTICE;
         foreach ($correctPerson as $personInfo) {
             $person = Emby::where('tg', $personInfo['tg_id'])->first();
             if (empty($person)) {
-                $this->replyWithMessage([
+                $this->replyMessage([
                     'chat_id' => config('telegram.group_id'),
                     'text' => sprintf('用户 %s 账号已不存在', $personInfo['tg_id']),
                 ]);
@@ -174,7 +175,7 @@ NOTICE;
 
         $personDetail = '';
         foreach ($correctPerson as $personInfo) {
-            $personDetail .= sprintf("[%s](tg://user?id=%s)\n", telegramEscape($personInfo['tg_name']), $personInfo['tg_id']);
+            $personDetail .= sprintf("[%s](tg://user?id=%s)\n", app(TelegramService::class)->escape($personInfo['tg_name']), $personInfo['tg_id']);
         }
 
         $notice = <<<NOTICE
@@ -188,7 +189,7 @@ NOTICE;
 {$personDetail}
 NOTICE;
 
-        $this->replyWithMessage([
+        $this->replyMessage([
             'chat_id' => config('telegram.group_id'),
             'parse_mode' => 'MarkdownV2',
             'text' => $notice,
