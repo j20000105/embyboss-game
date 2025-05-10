@@ -17,6 +17,10 @@ class NumberGameTest extends TestCase
             'tg' => 111,
             'iv' => 999,
         ]);
+        Emby::create([
+            'tg' => 222,
+            'iv' => 999000123,
+        ]);
 
         $webhook = 'telegram/'.config('telegram.webhook_disguise').'/webhook';
         $response = $this->postJson($webhook, $this->commandRequest([
@@ -75,6 +79,9 @@ class NumberGameTest extends TestCase
 
         $coins = Emby::where('tg', 111)->first();
         $this->assertEquals(899, $coins->iv);
+
+        $other = Emby::where('tg', 222)->first();
+        $this->assertEquals(999000123, $other->iv);
     }
 
     protected function commandRequest($command = [])
