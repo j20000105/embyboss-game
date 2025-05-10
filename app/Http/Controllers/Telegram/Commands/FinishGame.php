@@ -28,7 +28,7 @@ class FinishGame extends BaseCommand
         $game = explode(' ', $text);
         $coinName = config('game.coin_name');
         $commandExample = <<<'EXAMPLE'
-指令错误格式如下：
+指令格式如下：
 1、猜数字游戏
 /finish_game number 5
 数字为开奖结果

@@ -23,7 +23,7 @@ return new class extends Migration
             $table->unsignedBigInteger('winner_count')->default(0);
             $table->timestamps();
 
-            $table->index('status');
+            $table->index(['type', 'status']);
         });
 
         Schema::create('game_plays', function (Blueprint $table) {
@@ -36,6 +36,9 @@ return new class extends Migration
             $table->unsignedBigInteger('after_coins');
             $table->text('details')->comment('参与详情');
             $table->timestamps();
+
+            $table->index(['game_id', 'tg_id']);
+            $table->index('tg_id');
         });
 
         Schema::create('game_rewards', function (Blueprint $table) {
@@ -47,6 +50,9 @@ return new class extends Migration
             $table->unsignedBigInteger('after_coins');
             $table->text('details')->nullable();
             $table->timestamps();
+
+            $table->index(['game_id', 'tg_id']);
+            $table->index('tg_id');
         });
     }
 
