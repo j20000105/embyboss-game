@@ -11,6 +11,42 @@ class NumberGameTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_start_game_param(): void
+    {
+        $webhook = 'telegram/'.config('telegram.webhook_disguise').'/webhook';
+        $response = $this->postJson($webhook, $this->commandRequest([
+            'message' => [
+                'text' => '/start_game number',
+                'entities' => [
+                    ['length' => 11],
+                ],
+            ],
+        ]));
+        $response->assertSeeText('ok');
+
+        $response = $this->postJson($webhook, $this->commandRequest([
+            'message' => [
+                'text' => '/start_game number abc',
+                'entities' => [
+                    ['length' => 11],
+                ],
+            ],
+        ]));
+        $response->assertSeeText('ok');
+
+        $response = $this->postJson($webhook, $this->commandRequest([
+            'message' => [
+                'text' => '/start_game number 0-9 abc',
+                'entities' => [
+                    ['length' => 11],
+                ],
+            ],
+        ]));
+        $response->assertSeeText('ok');
+
+        $this->assertEquals(0, Game::count());
+    }
+
     public function test_normal(): void
     {
         Emby::create([
@@ -32,6 +68,19 @@ class NumberGameTest extends TestCase
             ],
         ]));
         $response->assertSeeText('ok');
+
+        // 重复创建
+        $response = $this->postJson($webhook, $this->commandRequest([
+            'message' => [
+                'text' => '/start_game number 1-100 100 500 999',
+                'entities' => [
+                    ['length' => 11],
+                ],
+            ],
+        ]));
+        $response->assertSeeText('ok');
+
+        // 重复的被过滤，只有一个
         $this->assertEquals(1, Game::count());
 
         $response = $this->postJson($webhook, $this->commandRequest([

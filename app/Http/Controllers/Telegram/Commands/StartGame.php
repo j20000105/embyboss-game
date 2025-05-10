@@ -30,7 +30,7 @@ class StartGame extends BaseCommand
 0-9 为数字范围，可自定义
 数字为投注指定个数所需花费{$coinName}，同时也限制最大投注个数，至少填写一个
 EXAMPLE;
-        if (count($game) < 4) {
+        if (count($game) < 2) {
             $this->replyWithMessage([
                 'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
                 'text' => $commandExample,
@@ -53,6 +53,20 @@ EXAMPLE;
 
     public function numberGame($game)
     {
+        $coinName = config('game.coin_name');
+        if (count($game) < 4) {
+            $this->replyWithMessage([
+                'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
+                'text' => <<<EXAMPLE
+指令格式如下：
+/start_game number 0-9 500 2000 10000
+0-9 为数字范围，可自定义
+数字为投注指定个数所需花费{$coinName}，同时也限制最大投注个数，至少填写一个
+EXAMPLE,
+            ]);
+
+            return;
+        }
         $range = $game[2];
         $range = explode('-', $range);
         if (count($range) != 2
@@ -69,18 +83,8 @@ EXAMPLE;
         }
         $range = array_map('intval', $range);
 
-        $currentGame = Game::where('type', 'number')->where('status', 'ongoing')->first();
-        if ($currentGame) {
-            $this->replyWithMessage([
-                'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
-                'text' => '当前有游戏正在进行，请等待...',
-            ]);
-
-            return;
-        }
         $costs = [];
         $explains = [];
-        $coinName = config('game.coin_name');
         foreach ($game as $key => $value) {
             if ($key < 3) {
                 continue;
@@ -96,6 +100,17 @@ EXAMPLE;
             $costs[] = intval($value);
             $explains[] = sprintf('投注 %s 个数字，总花费 %s %s', $key - 2, $value, $coinName);
         }
+
+        $currentGame = Game::where('type', 'number')->where('status', 'ongoing')->first();
+        if ($currentGame) {
+            $this->replyWithMessage([
+                'reply_to_message_id' => $this->getUpdate()->getMessage()->message_id,
+                'text' => '当前有游戏正在进行，请等待...',
+            ]);
+
+            return;
+        }
+
         Game::create([
             'status' => 'ongoing',
             'type' => 'number',
