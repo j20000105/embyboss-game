@@ -173,6 +173,7 @@ EXAMPLE,
 猜数字游戏开始
 数字范围为 {$range[0]} 到 {$range[1]}
 {$explainText}
+请使用指令参与：/number_game 数字
 TEXT;
         if (! empty($options['closing-time'])) {
             $gameInfo .= "\n封盘时间为 {$closingTime}";
